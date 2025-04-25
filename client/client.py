@@ -22,7 +22,7 @@ def print_menu():
     /listar_personas     → Ver personalidades salvas
     /salvar              → Salvar a conversa atual
     /resumir             → Ver um resumo da conversa
-    /carregar            → Carregar uma sessão salva
+    /carregar            → Carregaoir uma sessão salva
     /sair                → Finalizar e salvar
     /ajuda               → Mostrar este menu
     ============================

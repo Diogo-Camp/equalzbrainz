@@ -67,15 +67,12 @@ def conversar():
         "stream": False
     }
 
-    resposta = subprocess.run(
-        ["curl", "-s", "-X", "POST", OLLAMA_ENDPOINT, "-d", json.dumps(payload)],
-        capture_output=True, text=True
-    )
-
     try:
-        content = json.loads(resposta.stdout).get("message", {}).get("content", "")
-    except:
-        content = "Erro ao processar resposta."
+        resposta = requests.post(OLLAMA_ENDPOINT, json=payload)
+        output = resposta.json()
+        content = output.get("message", {}).get("content", "")
+    except Exception as e:
+        content = f"Erro ao processar resposta: {str(e)}"
 
     sessao["historico"].append({"role": "user", "content": pergunta})
     sessao["historico"].append({"role": "assistant", "content": content})
