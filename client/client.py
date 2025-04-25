@@ -1,5 +1,6 @@
 # client.py
 import requests
+from flask import request
 import json
 import readline  # histórico do terminal
 import os
