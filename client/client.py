@@ -1,7 +1,7 @@
 import requests
 import json
 
-SERVIDOR_URL = "http://localhost:5000"
+SERVIDOR_URL = "http://192.168.0.36:5000"
 modo_admin = False
 
 def print_menu():
