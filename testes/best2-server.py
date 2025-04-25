@@ -1,4 +1,3 @@
-import torch
 import ollama
 from typing import List, Dict
 from flask import Flask, request, jsonify, Response
@@ -9,45 +8,12 @@ import re
 import hashlib
 import json
 
-# Configurações
-EMBEDDING_MODEL = "nomic-embed-text"  # Atualize se usar outro modelo
-DEFAULT_DB_PATH = "chatbot_db.sqlite"
-OLLAMA_CONFIG = {
-    'num_gpu': 20 if torch.cuda.is_available() else 0,
-    'main_gpu': 0,
-    'low_vram': False
-}
-
-#flask
 app = Flask(__name__)
 CORS(app)
-@app.before_request
-def before_request():
-    """Monitora tempo de requisição"""
-    request.start_time = time.time()
-    request.environ['start_time'] = time.time()
 
-@app.after_request
-def after_request(response):
-    """Log de performance"""
-    duration = (time.time() - request.start_time) * 1000
-    app.logger.info(
-        f"{request.method} {request.path} - "
-        f"{response.status_code} - "
-        f"{duration:.2f}ms"
-    )
-    return response
-
-def log_ollama_perf(response):
-    """Log detalhado do Ollama"""
-    if isinstance(response, dict):
-        print("\n📊 Estatísticas Ollama:")
-        print(f"Modelo: {response.get('model')}")
-        print(f"Tempo total: {response.get('total_duration', 0)/1e9:.2f}s")
-        print(f"Tokens gerados: {response.get('eval_count', 0)}")
-        #print(f"Tokens/segundo: {response.get('eval_count', 0)/(response.get('eval_duration', 1)/1e9:.1f}")
-    return response
-
+# Configurações
+DEFAULT_DB_PATH = "chatbot_db.sqlite"
+EMBEDDING_MODEL = "nomic-embed-text"  # Atualize se usar outro modelo
 
 class ChatbotDatabase:
     def __init__(self, db_path: str = DEFAULT_DB_PATH):
@@ -154,7 +120,7 @@ class Chatbot:
                     'num_ctx': 4096
                 }
             )
-            response = log_ollama_perf(response)
+            
             # Salva resposta
             assistant_reply = response['message']['content']
             self.add_message(conversation_id, 'assistant', assistant_reply)
@@ -210,12 +176,4 @@ def chat():
 if __name__ == "__main__":
     print("Iniciando servidor Flask...")
     print("Verifique se Ollama está rodando (ollama serve)")
-    # Verifica disponibilidade de GPU
-    try:
-        if torch.cuda.is_available():
-            print("✅ GPU detectada - Ollama usará CUDA")
-        else:
-            print("⚠️  GPU não detectada - Usando CPU")
-    except:
-            print("⚠️  PyTorch não instalado - Verificação de GPU indisponível")
     app.run(host='0.0.0.0', port=5000, threaded=True)

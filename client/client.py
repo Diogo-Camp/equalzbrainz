@@ -5,7 +5,7 @@ import readline  # histórico do terminal
 import os
 
 # Configuração do endpoint do servidor
-SERVIDOR_URL = "http://SEU_IP:8080"
+SERVIDOR_URL = "http://192.168.0.36:5000"
 
 # Estado local
 sessao = {

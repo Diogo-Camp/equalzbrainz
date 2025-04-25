@@ -39,21 +39,22 @@ def after_request(response):
     return response
 
 def log_ollama_perf(response):
-    """Log detalhado do Ollama"""
     if isinstance(response, dict):
-        print("\n📊 Estatísticas Ollama:")
-        print(f"Modelo: {response.get('model')}")
-        print(f"Tempo total: {response.get('total_duration', 0)/1e9:.2f}s")
-        print(f"Tokens gerados: {response.get('eval_count', 0)}")
-        #print(f"Tokens/segundo: {response.get('eval_count', 0)/(response.get('eval_duration', 1)/1e9:.1f}")
-    return response
-
+        eval_count = response.get('eval_count', 0)
+        eval_duration = (response.get('eval_duration', 0) or 1) / 1e9
+        
+        app.logger.info(
+            f"Ollama Stats - Model: {response.get('model')} | "
+            f"Total: {response.get('total_duration', 0)/1e9:.2f}s | "
+            f"Tokens: {eval_count} | "
+            f"Speed: {eval_count/max(eval_duration, 0.001):.1f}tok/s"
+        )
 
 class ChatbotDatabase:
     def __init__(self, db_path: str = DEFAULT_DB_PATH):
         self.db_path = db_path
         self._init_db()
-    
+        
     def _init_db(self):
         """Inicializa o banco de dados simplificado"""
         with sqlite3.connect(self.db_path) as conn:

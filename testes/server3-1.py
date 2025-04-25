@@ -1,5 +1,4 @@
 import torch
-import traceback
 import ollama
 from typing import List, Dict
 from flask import Flask, request, jsonify, Response
@@ -9,7 +8,6 @@ import time
 import re
 import hashlib
 import json
-import logging
 
 # Configurações
 EMBEDDING_MODEL = "nomic-embed-text"  # Atualize se usar outro modelo
@@ -152,24 +150,11 @@ class Chatbot:
             response = ollama.chat(
                 model='mistral',
                 messages=messages,
-                stream=False,
                 options={
                     'temperature': 0.7,
                     'num_ctx': 4096
                 }
             )
-            
-            # Verificação adicional
-        # if isinstance(response, dict) and 'message' in response:
-        #     if isinstance(response['message'], dict) and 'content' in response['message']:
-        #         content = response['message']['content']
-        #     else:
-        #         app.logger.error(f"Estrutura inesperada da resposta: {response}")
-        #         raise ValueError("Resposta do Ollama em formato inesperado")
-        # else:
-        #     app.logger.error(f"Resposta não é um dict válido: {response}")
-        #     raise ValueError("Resposta do Ollama inválida")
-            
             response = log_ollama_perf(response)
             # Salva resposta
             assistant_reply = response['message']['content']
@@ -206,81 +191,32 @@ def start_conversation():
     })
 
 @app.route('/api/chat', methods=['POST'])
-def handle_chat():
-    try:
-        app.logger.debug("Recebida requisição /api/chat")
-        data = request.get_json()
-        app.logger.debug(f"Dados recebidos: {json.dumps(data, indent=2)}")
-        
-        if not data or 'message' not in data or 'conversation_id' not in data:
-            raise ValueError("Dados inválidos - formato esperado: {'conversation_id':..., 'message':...}")
-        
-        # Salva mensagem do usuário
-        user_message = {
-            'id': hashlib.sha256(f"user{data['message']}{time.time()}".encode()).hexdigest(),
-            'conversation_id': data['conversation_id'],
-            'role': 'user',
-            'content': data['message'],
-            'timestamp': time.time()
-        }
-        db.save_message(user_message)
-        app.logger.debug("Mensagem do usuário salva no banco de dados")
-        
-        # Prepara contexto
-        messages = conv_manager.get_context(data['conversation_id'])
-        messages.append({'role': 'user', 'content': data['message']})
-        app.logger.debug(f"Contexto preparado: {json.dumps(messages, indent=2)}")
-        
-        # Gera resposta
-        app.logger.debug("Iniciando chamada para Ollama...")
-        start_time = time.time()
-        
-        response = ollama_client.generate_response(
-            messages=messages,
-            config=data.get('config', {})
-        )
-        
-        duration = time.time() - start_time
-        app.logger.debug(f"Resposta do Ollama recebida em {duration:.2f}s: {json.dumps(response, indent=2)}")
-        
-        # Salva resposta do assistente
-        assistant_message = {
-            'id': hashlib.sha256(f"assistant{response['response']}{time.time()}".encode()).hexdigest(),
-            'conversation_id': data['conversation_id'],
-            'role': 'assistant',
-            'content': response['response'],
-            'timestamp': time.time()
-        }
-        db.save_message(assistant_message)
-        app.logger.debug("Resposta do assistente salva no banco de dados")
-        
-        return jsonify({
-            "response": response['response'],
-            "conversation_id": data['conversation_id'],
-            "metadata": response['metadata']
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Erro em /api/chat: {str(e)}")
-        app.logger.error(traceback.format_exc())  # Log do stacktrace completo
-        return jsonify({
-            "error": str(e),
-            "traceback": traceback.format_exc().splitlines()
-        }), 500
-
-# Configure logging para debug
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    app.logger.setLevel(logging.DEBUG)
+def chat():
+    chatbot = Chatbot()
+    data = request.json
     
+    if not data or 'message' not in data or 'conversation_id' not in data:
+        return jsonify({'error': 'Dados inválidos'}), 400
+    
+    response = chatbot.generate_response(
+        conversation_id=data['conversation_id'],
+        user_message=data['message']
+    )
+    
+    if 'error' in response:
+        return jsonify(response), 500
+    
+    return jsonify(response)
+
+if __name__ == "__main__":
+    print("Iniciando servidor Flask...")
+    print("Verifique se Ollama está rodando (ollama serve)")
+    # Verifica disponibilidade de GPU
     try:
-        app.run(
-            host='0.0.0.0', 
-            port=5000, 
-            debug=True, 
-            threaded=True,
-            use_reloader=False
-        )
-    except Exception as e:
-        app.logger.critical(f"Falha ao iniciar servidor: {str(e)}")
-        raise
+        if torch.cuda.is_available():
+            print("✅ GPU detectada - Ollama usará CUDA")
+        else:
+            print("⚠️  GPU não detectada - Usando CPU")
+    except:
+            print("⚠️  PyTorch não instalado - Verificação de GPU indisponível")
+    app.run(host='0.0.0.0', port=5000, threaded=True)
