@@ -80,8 +80,13 @@ def conversar():
     try:
         resposta = requests.post(OLLAMA_ENDPOINT, json=payload)
         fim = time.time()
-        output = resposta.json()
-        content = output.get("response", "[ERRO] Sem resposta.")
+        try:
+            output = resposta.json()
+            if modo_admin:
+                print("[DEBUG] Resposta bruta:", json.dumps(output, indent=2))
+            content = output.get("response") or output.get("message", {}).get("content", "[ERRO] Resposta inesperada.")
+        except Exception as e:
+            content = f"[ERRO] Parsing JSON: {str(e)}"
         if modo_admin:
             print(f"[LOG ADMIN] Tempo resposta: {fim - inicio:.2f} segundos")
             print(f"[LOG ADMIN] Tokens usados (estimado): {len(prompt.split())}")
