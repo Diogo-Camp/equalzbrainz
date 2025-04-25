@@ -54,47 +54,76 @@ def salvar_conversa():
         json.dump(sessao, f, indent=2, ensure_ascii=False)
 
 # ---------------- ROTAS PRINCIPAIS ----------------
+# @app.route("/conversar", methods=["POST"])
+# def conversar():
+#     data = request.json
+#     pergunta = data.get("mensagem", "")
+#     personalidade = carregar_personalidade(sessao["personalidade"])
+#
+#     mensagens = [
+#         {"role": "system", "content": personalidade.get("system", "Você é um assistente útil.")}
+#     ] + sessao["historico"] + [{"role": "user", "content": pergunta}]
+#
+#     payload = {
+#         "model": sessao["modelo"],
+#         "messages": mensagens,
+#         "stream": False
+#     }
+#
+#     print("\n[DEBUG] Enviando payload para Ollama:")
+#     print(json.dumps(payload, indent=2, ensure_ascii=False))
+#
+#     try:
+#         resposta = requests.post(OLLAMA_ENDPOINT, json=payload, timeout=60)
+#         output = resposta.json()
+#         print("[DEBUG] Resposta bruta do Ollama:")
+#         print(json.dumps(output, indent=2, ensure_ascii=False))
+#
+#         content = output.get("message", {}).get("content", "[ERRO] Conteúdo não encontrado.")
+#     except Exception as e:
+#         content = f"[ERRO] Falha ao obter resposta do modelo: {str(e)}"
+#
+#     sessao["historico"].append({"role": "user", "content": pergunta})
+#     sessao["historico"].append({"role": "assistant", "content": content})
+#
+#     return jsonify({"resposta": content})
+#
+# @app.route("/mudar_modelo", methods=["POST"])
+# def mudar_modelo():
+#     modelo = request.json.get("modelo")
+#     if modelo in carregar_modelos():
+#         sessao["modelo"] = modelo
+#         return jsonify({"status": "ok", "modelo": modelo})
+#     return jsonify({"status": "erro", "mensagem": "Modelo não encontrado."})
 @app.route("/conversar", methods=["POST"])
 def conversar():
     data = request.json
     pergunta = data.get("mensagem", "")
     personalidade = carregar_personalidade(sessao["personalidade"])
 
-    mensagens = [
-        {"role": "system", "content": personalidade.get("system", "Você é um assistente útil.")}
-    ] + sessao["historico"] + [{"role": "user", "content": pergunta}]
+    prompt = f"{personalidade.get('system', '')}\nUsuário: {pergunta}\nAssistente:"
 
     payload = {
         "model": sessao["modelo"],
-        "messages": mensagens,
+        "prompt": prompt,
         "stream": False
     }
 
-    print("\n[DEBUG] Enviando payload para Ollama:")
-    print(json.dumps(payload, indent=2, ensure_ascii=False))
+    print("[DEBUG] Payload /generate:", json.dumps(payload, indent=2, ensure_ascii=False))
 
     try:
-        resposta = requests.post(OLLAMA_ENDPOINT, json=payload, timeout=60)
+        resposta = requests.post("http://localhost:11434/api/generate", json=payload)
         output = resposta.json()
-        print("[DEBUG] Resposta bruta do Ollama:")
-        print(json.dumps(output, indent=2, ensure_ascii=False))
-
-        content = output.get("message", {}).get("content", "[ERRO] Conteúdo não encontrado.")
+        print("[DEBUG] Resposta bruta do Ollama:", output)
+        content = output.get("response", "[ERRO] Conteúdo não encontrado.")
     except Exception as e:
-        content = f"[ERRO] Falha ao obter resposta do modelo: {str(e)}"
+        content = f"[ERRO] Falha na requisição: {str(e)}"
 
     sessao["historico"].append({"role": "user", "content": pergunta})
     sessao["historico"].append({"role": "assistant", "content": content})
 
     return jsonify({"resposta": content})
 
-@app.route("/mudar_modelo", methods=["POST"])
-def mudar_modelo():
-    modelo = request.json.get("modelo")
-    if modelo in carregar_modelos():
-        sessao["modelo"] = modelo
-        return jsonify({"status": "ok", "modelo": modelo})
-    return jsonify({"status": "erro", "mensagem": "Modelo não encontrado."})
 
 @app.route("/mudar_personalidade", methods=["POST"])
 def mudar_personalidade():
