@@ -5,8 +5,14 @@ import uuid
 from flask import Flask, request, jsonify
 import subprocess
 import requests
-
+from utils.faiss_manager import FaissMemory
+import time
 app = Flask(__name__)
+
+from utils.faiss_manager import FaissMemory
+
+memoria = FaissMemory()
+modo_admin = False  # Variável de controle de logs
 
 # Diretórios
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -53,12 +59,18 @@ def salvar_conversa():
 
 @app.route("/conversar", methods=["POST"])
 def conversar():
+    global modo_admin
+
     data = request.json
     pergunta = data.get("mensagem", "")
+    inicio = time.time()
+    similares = memoria.buscar_similar(pergunta, k=3)
+    memoria_injetada = "\n".join([s.get("texto", "") for s in similares])
+
     personalidade = carregar_personalidade(sessao["personalidade"])
 
-    prompt = f"{personalidade.get('system', '')}\nUsuário: {pergunta}\nAssistente:"
-
+    #depois substitui o nome de pessoaIA por o nome da persona
+    prompt = f"{personalidade.get('system', '')}\nContexto relevante:\n{memoria_injetada}\nUsuário: {pergunta}\nPessoaIA:"
     payload = {
         "model": sessao["modelo"],
         "prompt": prompt,
@@ -67,8 +79,14 @@ def conversar():
 
     try:
         resposta = requests.post(OLLAMA_ENDPOINT, json=payload)
+        fim = time.time()
         output = resposta.json()
         content = output.get("response", "[ERRO] Sem resposta.")
+        if modo_admin:
+            print(f"[LOG ADMIN] Tempo resposta: {fim - inicio:.2f} segundos")
+            print(f"[LOG ADMIN] Tokens usados (estimado): {len(prompt.split())}")
+        # adiciona a memoria de volta ao prompt
+        memoria.add_memory(f"Usuário: {pergunta} | IA: {content}")
     except Exception as e:
         content = f"[ERRO] Ollama: {str(e)}"
 
