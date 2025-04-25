@@ -9,7 +9,16 @@ from utils.faiss_manager import FaissMemory
 import time
 app = Flask(__name__)
 
-from utils.faiss_manager import FaissMemory
+
+
+sessao_config = {
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "top_k": 60,
+    "repeat_penalty": 1.1,
+    "num_predict": 400,
+    "max_historico": 12  # maximo dee pares pergunta-resposta armazenados
+}
 
 memoria = FaissMemory()
 modo_admin = False  # Variável de controle de logs
@@ -50,6 +59,28 @@ def carregar_personalidade(nome):
             return json.load(f)
     return {"system": "Você é um assistente útil."}
 
+@app.route("/ajustar_parametro", methods=["POST"])
+def ajustar_parametro():
+    data = request.json
+    param = data.get("param")
+    valor = data.get("valor")
+    if param in sessao_config:
+        sessao_config[param] = valor
+        return jsonify({"status": "ok", "param": param, "valor": valor})
+    return jsonify({"status": "erro", "mensagem": "Parâmetro inválido"})
+
+
+@app.route("/status", methods=["GET"])
+def status():
+    return jsonify({
+        "modelo": sessao.get("modelo"),
+        "personalidade": sessao.get("personalidade"),
+        "historico_mensagens": len(sessao.get("historico", [])),
+        "parametros": sessao_config
+    })
+
+
+
 
 def salvar_conversa():
     caminho = os.path.join(CONVERSAS_DIR, f"{sessao['id']}.json")
@@ -74,7 +105,12 @@ def conversar():
     payload = {
         "model": sessao["modelo"],
         "prompt": prompt,
-        "stream": False
+        "stream": False,
+        "temperature": sessao_config["temperature"],
+        "top_p": sessao_config["top_p"],
+        "top_k": sessao_config["top_k"],
+        "repeat_penalty": sessao_config["repeat_penalty"],
+        "num_predict": sessao_config["num_predict"]
     }
 
     try:
@@ -87,6 +123,10 @@ def conversar():
             content = output.get("response") or output.get("message", {}).get("content", "[ERRO] Resposta inesperada.")
         except Exception as e:
             content = f"[ERRO] Parsing JSON: {str(e)}"
+
+        if not content or content.strip() == "":
+            content = "[ERRO] Sem resposta do modelo. Pode ter travado por excesso de histórico."
+
         if modo_admin:
             print(f"[LOG ADMIN] Tempo resposta: {fim - inicio:.2f} segundos")
             print(f"[LOG ADMIN] Tokens usados (estimado): {len(prompt.split())}")
@@ -97,6 +137,10 @@ def conversar():
 
     sessao["historico"].append({"role": "user", "content": pergunta})
     sessao["historico"].append({"role": "assistant", "content": content})
+
+    #limitar historico
+    if len(sessao["historico"]) > sessao_config["max_historico"] * 2:
+        sessao["historico"] = sessao["historico"][-(sessao_config["max_historico"] * 2):]
 
     return jsonify({"resposta": content})
 

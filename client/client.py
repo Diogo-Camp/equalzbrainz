@@ -40,6 +40,10 @@ def main():
     while True:
         try:
             entrada = input("Você: ").strip()
+            if entrada.startswith("!param"):
+                _, param, valor = entrada.split()
+                ajustar_parametro(param, float(valor))
+                continue
             if entrada == "":
                 continue
             if entrada.startswith("/"):
@@ -60,6 +64,12 @@ def main():
                     print(requests.get(f"{SERVIDOR_URL}/salvar").json())
                 elif comando == "resumir":
                     print(requests.get(f"{SERVIDOR_URL}/resumir").json())
+                elif entrada.strip() == "!resetar_memoria":
+                    r = requests.get(f"{SERVIDOR_URL})/resetar_memoria")
+                if entrada.strip() == "!status":
+                    r = requests.get(f"{SERVIDOR_URL}/status")
+                    print(json.dumps(r.json(), indent=2, ensure_ascii=False))
+                    continue
                 elif comando == "sair":
                     print("Encerrando sessão...")
                     requests.get(f"{SERVIDOR_URL}/sair")
