@@ -1,4 +1,4 @@
-from api.servidor import app, carregar_modelos
+from api.servidor1 import app, carregar_modelos
 
 if __name__ == '__main__':
     print("""🔧 FusionIA Server Inicializando...
