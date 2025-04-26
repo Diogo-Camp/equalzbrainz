@@ -8,6 +8,7 @@ import subprocess
 import requests
 import time
 from utils.faiss_manager import FaissMemory
+from config import OLLAMA_ENDPOINT, DEFAULT_SESSAO_CONFIG
 
 # Inicializações
 app = Flask(__name__)
@@ -18,7 +19,6 @@ CONVERSAS_DIR = os.path.join(BASE_DIR, "..", "dados", "conversas_salvas")
 PERSONALIDADES_DIR = os.path.join(BASE_DIR, "..", "dados", "personalidades")
 
 # Endpoints
-OLLAMA_ENDPOINT = "http://localhost:11434/api/generate"
 
 # Sessão atual
 sessao = {
@@ -29,15 +29,7 @@ sessao = {
 }
 
 # Configurações do servidor
-sessao_config = {
-    "temperature": 0.7,
-    "top_p": 0.9,
-    "top_k": 50,
-    "repeat_penalty": 1.1,
-    "num_predict": 400,
-    "max_historico": 10
-}
-
+sessao_config = DEFAULT_SESSAO_CONFIG
 # Instâncias de memória
 memoria = FaissMemory()
 modo_admin = False
@@ -81,11 +73,12 @@ def conversar():
     global modo_admin
     data = request.json
     pergunta = data.get("mensagem", "")
+    personalidade = carregar_personalidade(sessao["personalidade"])
 
     similares = memoria.buscar_similar(pergunta, k=3)
     memoria_injetada = "\n".join([s.get("texto", "") for s in similares])
 
-    personalidade = carregar_personalidade(sessao.get("personalidade", "default"))
+    #personalidade = carregar_personalidade(sessao.get("personalidade", "default"))
     prompt = f"""{personalidade.get('system', 'Você é um assistente útil.')}
         Contexto relevante: {memoria_injetada},
         Usuário: {pergunta},
@@ -104,7 +97,7 @@ def conversar():
 
     inicio = time.time()
     try:
-        resposta = requests.post(OLLAMA_ENDPOINT, json=payload)
+        resposta = requests.post(OLLAMA_ENDPOINT, json=payload, timeout=30)
         output = resposta.json()
         content = output.get("response") or output.get("message", {}).get("content", "[ERRO] Resposta inesperada.")
     except Exception as e:
