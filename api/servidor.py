@@ -7,8 +7,9 @@ from flask import Flask, request, jsonify
 import subprocess
 import requests
 import time
+import faiss
 from utils.faiss_manager import FaissMemory
-from config import OLLAMA_ENDPOINT, DEFAULT_SESSAO_CONFIG
+#from config import OLLAMA_ENDPOINT, DEFAULT_SESSAO_CONFIG
 
 # Inicializações
 app = Flask(__name__)
@@ -19,6 +20,7 @@ CONVERSAS_DIR = os.path.join(BASE_DIR, "..", "dados", "conversas_salvas")
 PERSONALIDADES_DIR = os.path.join(BASE_DIR, "..", "dados", "personalidades")
 
 # Endpoints
+OLLAMA_ENDPOINT = "http://localhost:11434/api/generate"
 
 # Sessão atual
 sessao = {
@@ -29,7 +31,15 @@ sessao = {
 }
 
 # Configurações do servidor
-sessao_config = DEFAULT_SESSAO_CONFIG
+sessao_config = {
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "top_k": 50,
+    "repeat_penalty": 1.1,
+    "num_predict": 400,
+    "max_historico": 10
+}
+
 # Instâncias de memória
 memoria = FaissMemory()
 modo_admin = False
