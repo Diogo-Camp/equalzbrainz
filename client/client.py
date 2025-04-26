@@ -64,9 +64,9 @@ def main():
                     print(requests.get(f"{SERVIDOR_URL}/salvar").json())
                 elif comando == "resumir":
                     print(requests.get(f"{SERVIDOR_URL}/resumir").json())
-                elif entrada.strip() == "!resetar_memoria":
+                elif comando == "resetar_memoria":
                     r = requests.get(f"{SERVIDOR_URL})/resetar_memoria")
-                if entrada.strip() == "!status":
+                elif comando == "status":
                     r = requests.get(f"{SERVIDOR_URL}/status")
                     print(json.dumps(r.json(), indent=2, ensure_ascii=False))
                     continue
