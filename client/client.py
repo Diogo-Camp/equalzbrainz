@@ -103,6 +103,7 @@ def main():
                 elif comando == "resetar_memoria":
                     r = requests.get(f"{SERVIDOR_URL}/resetar_memoria")
                     print(r.json())
+                    print("[DEBUG]:", r.text)  # <- Ver a resposta crua primeiro
 
                 elif comando == "status":
                     r = requests.get(f"{SERVIDOR_URL}/status")
